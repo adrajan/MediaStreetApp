@@ -7,7 +7,6 @@ android {
     namespace = "ads.mediastreet.ai"
     compileSdk = 34
 
-
     signingConfigs {
         create("release") {
             keyAlias = "mediastreet"
@@ -20,34 +19,32 @@ android {
         }
     }
 
-    buildTypes {
-        getByName("release") {
-            isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
-        }
-    }
-
     defaultConfig {
         applicationId = "ads.mediastreet.ai"
         minSdk = 21
         //noinspection ExpiredTargetSdkVersion this for clover Device
         targetSdk = 25
-        versionCode = 11
-        versionName = "1.0.11"
+        versionCode = 15
+        versionName = "1.0.15"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    buildFeatures {
+        viewBinding = true
+    }
+
     buildTypes {
-        release {
+        getByName("release") {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
-
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -55,14 +52,17 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
-    buildFeatures {
-        viewBinding = true
-    }
     useLibrary("org.apache.http.legacy")
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
@@ -76,9 +76,19 @@ dependencies {
     annotationProcessor("com.github.bumptech.glide:compiler:4.12.0")
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    
+    // Testing dependencies
     testImplementation(libs.junit)
+    testImplementation("org.mockito:mockito-core:5.3.1")
+    testImplementation("org.robolectric:robolectric:4.11.1")
+    
+    // Android Testing
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation("androidx.test:core:1.5.0")
+    androidTestImplementation("androidx.test:runner:1.5.2")
+    androidTestImplementation("androidx.test:rules:1.5.0")
+    
     implementation(libs.clover.cfp.sdk)
     implementation(libs.ssp.android)
     implementation(libs.sdp.android)
@@ -87,6 +97,20 @@ dependencies {
     implementation(libs.converter.gson)
     implementation(libs.logging.interceptor)
     implementation(libs.okhttp)
+}
 
+// Custom tasks for running tests
+tasks.register("runUnitTests") {
+    dependsOn("testDebugUnitTest")
+    description = "Run all unit tests"
+}
 
+tasks.register("runInstrumentedTests") {
+    dependsOn("connectedDebugAndroidTest")
+    description = "Run all instrumented tests"
+}
+
+tasks.register("runAllTests") {
+    dependsOn("runUnitTests", "runInstrumentedTests")
+    description = "Run both unit tests and instrumented tests"
 }

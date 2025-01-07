@@ -10,6 +10,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -40,7 +41,7 @@ import com.clover.sdk.v1.ServiceException;
 import com.clover.sdk.v1.merchant.Merchant;
 import com.clover.sdk.v1.merchant.MerchantConnector;
 import com.clover.sdk.v3.connector.IDisplayConnector;
-import com.clover.sdk.v3.inventory.InventoryConnector;
+import com.clover.sdk.v3.inventory.InventoryContract;
 import com.clover.sdk.v3.inventory.Item;
 import com.clover.sdk.v3.order.LineItem;
 import com.clover.sdk.v3.order.Order;
@@ -67,27 +68,70 @@ public class OrderListenerService extends Service {
     private OrderV31Connector mOrderConnector;
     private OrderConnector.OnOrderUpdateListener2 mOrderUpdateListener;
     private RemoteDeviceConnector remoteDeviceConnector;
-    private IDisplayConnector mDisplayConnector;
     private MerchantConnector mMerchantConnector;
-    private InventoryConnector mInventoryConnector;
     private String merchantId;
     private Map<String, Item> itemMap = new HashMap<>();
-    HandlerThread backgroundThread;
-    Handler backgroundHandler;
+    private OrderConnector orderConnector;
+    private MerchantConnector merchantConnector;
+    private Account account;
     private String currentOrderId;
     private Set<String> currentItemSet = new HashSet<>();
+    HandlerThread backgroundThread;
+    Handler backgroundHandler;
 
     @Override
     public void onCreate() {
         super.onCreate();
         initializeOrderConnector();
         initializeMerchantConnector();
-        initializeInventoryConnector();
+        fetchInventoryItems();
         startForegroundService();
         backgroundThread = new HandlerThread("OrderListenerServiceThread");
         backgroundThread.start();
         backgroundHandler = new Handler(backgroundThread.getLooper());
+    }
 
+    private void fetchInventoryItems() {
+        Log.d(TAG, "Loading Inventory Items");
+        try {
+            Cursor itemsCursor = getContentResolver().query(
+                    InventoryContract.Item.CONTENT_URI,
+                    null, null, null, null);
+            
+            if (itemsCursor != null) {
+                int idColumnIndex = itemsCursor.getColumnIndex(InventoryContract.Item._ID);
+                int nameColumnIndex = itemsCursor.getColumnIndex(InventoryContract.Item.NAME);
+                int priceColumnIndex = itemsCursor.getColumnIndex(InventoryContract.Item.PRICE);
+
+                if (idColumnIndex < 0 || nameColumnIndex < 0 || priceColumnIndex < 0) {
+                    Log.e(TAG, "Required columns not found in cursor. ID: " + idColumnIndex + 
+                              ", Name: " + nameColumnIndex + ", Price: " + priceColumnIndex);
+                    itemsCursor.close();
+                    return;
+                }
+
+                itemMap.clear(); // Clear the map before adding new items
+                while (itemsCursor.moveToNext()) {
+                    String id = itemsCursor.getString(idColumnIndex);
+                    String name = itemsCursor.getString(nameColumnIndex);
+                    long price = itemsCursor.getLong(priceColumnIndex);
+                    
+                    Item item = new Item();
+                    item.setId(id);
+                    item.setName(name);
+                    item.setPrice(price);
+                    
+                    itemMap.put(id, item);
+                    Log.d(TAG, "Item: ID " + id + ", Name: " + name + ", Price: " + price);
+                }
+                Log.d(TAG, "Loaded " + itemMap.size() + " items from inventory");
+                itemsCursor.close();
+            } else {
+                Log.e(TAG, "Failed to get cursor for inventory items");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading inventory items", e);
+        }
     }
 
     private void initializeOrderConnector() {
@@ -205,48 +249,6 @@ public class OrderListenerService extends Service {
             }
 
         });
-    }
-
-    private void initializeInventoryConnector() {
-        mInventoryConnector = new InventoryConnector(this, CloverAccount.getAccount(this), new ServiceConnector.OnServiceConnectedListener() {
-            @Override
-            public void onServiceConnected(ServiceConnector<? extends IInterface> connector) {
-
-            }
-
-            @Override
-            public void onServiceDisconnected(ServiceConnector<? extends IInterface> connector) {
-
-            }
-        });
-        mInventoryConnector.connect();
-        fetchInventoryItems();
-    }
-
-    private void fetchInventoryItems() {
-        if (mInventoryConnector != null) {
-            Log.d(TAG, "Loading Inventory Items");
-            mInventoryConnector.getItems(new ServiceConnector.Callback<List<Item>>() {
-                @Override
-                public void onServiceSuccess(List<Item> items, ResultStatus status) {
-                    itemMap.clear(); // Clear the map before adding new items
-                    for (Item item : items) {
-                        itemMap.put(item.getId(), item);
-                        Log.d(TAG, "Item: " + "ID " + item.getId() + ", Name: " + (String)item.getName() + ", Price: " + item.getPrice());
-                    }
-                }
-
-                @Override
-                public void onServiceFailure(ResultStatus status) {
-                    Log.e(TAG, "Error fetching items: " + status);
-                }
-
-                @Override
-                public void onServiceConnectionFailure() {
-                    Log.e(TAG, "Service connection failure");
-                }
-            });
-        }
     }
 
     private void handleOrderUpdate(String orderId) {
@@ -376,13 +378,7 @@ public class OrderListenerService extends Service {
         if (mOrderConnector != null) {
             mOrderConnector.addOnOrderChangedListener(mOrderUpdateListener);
             mOrderConnector.disconnect();
-            mOrderConnector = null;
         }
-        if (mDisplayConnector != null) {
-            mDisplayConnector.dispose();
-            mDisplayConnector = null;
-        }
-        Log.d(TAG, "OrderListenerService stopped.");
     }
 
     @Override

@@ -19,10 +19,14 @@ class Splash : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = SplashScreenBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // Set version name
+        binding.tvVersion.text = "Version ${packageManager.getPackageInfo(packageName, 0).versionName}"
+
         val isFirstLaunch = SharedPreferencesHelper.getBoolean(ISFIRSTLAUNCH, true)
         if (isFirstLaunch) {
             SharedPreferencesHelper.saveBoolean(ISFIRSTLAUNCH, false)
-            setContentView(binding.getRoot())
             CoroutineScope(Dispatchers.Main).launch {
                 delay(2000)
                 startActivity(Intent(this@Splash, Main::class.java))
@@ -34,6 +38,5 @@ class Splash : Activity() {
             overridePendingTransition(R.anim.stay, R.anim.fadeout)
             finish()
         }
-
     }
 }
