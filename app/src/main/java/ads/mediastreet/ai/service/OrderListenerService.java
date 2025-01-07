@@ -10,9 +10,11 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.os.Binder;
 import android.os.IInterface;
 import android.os.Looper;
 import android.os.Message;
@@ -40,7 +42,7 @@ import com.clover.sdk.v1.ServiceException;
 import com.clover.sdk.v1.merchant.Merchant;
 import com.clover.sdk.v1.merchant.MerchantConnector;
 import com.clover.sdk.v3.connector.IDisplayConnector;
-import com.clover.sdk.v3.inventory.InventoryConnector;
+import com.clover.sdk.v3.inventory.InventoryContract;
 import com.clover.sdk.v3.inventory.Item;
 import com.clover.sdk.v3.order.LineItem;
 import com.clover.sdk.v3.order.Order;
@@ -69,7 +71,6 @@ public class OrderListenerService extends Service {
     private RemoteDeviceConnector remoteDeviceConnector;
     private IDisplayConnector mDisplayConnector;
     private MerchantConnector mMerchantConnector;
-    private InventoryConnector mInventoryConnector;
     private String merchantId;
     private Map<String, Item> itemMap = new HashMap<>();
     HandlerThread backgroundThread;
@@ -77,17 +78,39 @@ public class OrderListenerService extends Service {
     private String currentOrderId;
     private Set<String> currentItemSet = new HashSet<>();
 
+    public interface OnMerchantIdReadyListener {
+        void onMerchantIdReady(String merchantId);
+    }
+
+    private OnMerchantIdReadyListener merchantIdReadyListener;
+
+    public void setOnMerchantIdReadyListener(OnMerchantIdReadyListener listener) {
+        this.merchantIdReadyListener = listener;
+        // If merchantId is already available, notify immediately
+        if (merchantId != null) {
+            listener.onMerchantIdReady(merchantId);
+        }
+    }
+
+    private final IBinder binder = new LocalBinder();
+
+    public class LocalBinder extends Binder {
+        public OrderListenerService getService() {
+            return OrderListenerService.this;
+        }
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
-        initializeOrderConnector();
-        initializeMerchantConnector();
-        initializeInventoryConnector();
-        startForegroundService();
         backgroundThread = new HandlerThread("OrderListenerServiceThread");
         backgroundThread.start();
         backgroundHandler = new Handler(backgroundThread.getLooper());
 
+        initializeOrderConnector();
+        initializeMerchantConnector();
+        startForegroundService();
+        fetchInventoryItems();
     }
 
     private void initializeOrderConnector() {
@@ -193,6 +216,9 @@ public class OrderListenerService extends Service {
             public void onServiceSuccess(Merchant result, ResultStatus status) {
                 merchantId = result.getId();
                 Log.d(TAG, "Merchant ID: " + merchantId);
+                if (merchantIdReadyListener != null) {
+                    merchantIdReadyListener.onMerchantIdReady(merchantId);
+                }
             }
             @Override
             public void onServiceFailure(ResultStatus status) {
@@ -207,46 +233,56 @@ public class OrderListenerService extends Service {
         });
     }
 
-    private void initializeInventoryConnector() {
-        mInventoryConnector = new InventoryConnector(this, CloverAccount.getAccount(this), new ServiceConnector.OnServiceConnectedListener() {
-            @Override
-            public void onServiceConnected(ServiceConnector<? extends IInterface> connector) {
-
-            }
-
-            @Override
-            public void onServiceDisconnected(ServiceConnector<? extends IInterface> connector) {
-
-            }
-        });
-        mInventoryConnector.connect();
-        fetchInventoryItems();
-    }
-
     private void fetchInventoryItems() {
-        if (mInventoryConnector != null) {
-            Log.d(TAG, "Loading Inventory Items");
-            mInventoryConnector.getItems(new ServiceConnector.Callback<List<Item>>() {
-                @Override
-                public void onServiceSuccess(List<Item> items, ResultStatus status) {
-                    itemMap.clear(); // Clear the map before adding new items
-                    for (Item item : items) {
-                        itemMap.put(item.getId(), item);
-                        Log.d(TAG, "Item: " + "ID " + item.getId() + ", Name: " + (String)item.getName() + ", Price: " + item.getPrice());
+        backgroundHandler.post(() -> {
+            try {
+                // Query all items using InventoryContract
+                Cursor cursor = getContentResolver().query(
+                    InventoryContract.Item.CONTENT_URI,
+                    null,
+                    null,
+                    null,
+                    null
+                );
+
+                if (cursor != null) {
+                    try {
+                        // Get column indices once before the loop
+                        int idColumnIndex = cursor.getColumnIndex(InventoryContract.Item.ID);
+                        int nameColumnIndex = cursor.getColumnIndex(InventoryContract.Item.NAME);
+                        int skuColumnIndex = cursor.getColumnIndex(InventoryContract.Item.SKU);
+                        int priceColumnIndex = cursor.getColumnIndex(InventoryContract.Item.PRICE);
+
+                        // Validate column indices
+                        if (idColumnIndex < 0 || nameColumnIndex < 0 || skuColumnIndex < 0 || priceColumnIndex < 0) {
+                            Log.e(TAG, "Required columns not found in cursor");
+                            return;
+                        }
+
+                        while (cursor.moveToNext()) {
+                            String id = cursor.getString(idColumnIndex);
+                            String name = cursor.getString(nameColumnIndex);
+                            String sku = cursor.getString(skuColumnIndex);
+                            long price = cursor.getLong(priceColumnIndex);
+                            
+                            // Create Item object and add to map
+                            Item item = new Item();
+                            item.setId(id);
+                            item.setName(name);
+                            item.setSku(sku);
+                            item.setPrice(price);
+                            
+                            itemMap.put(id, item);
+                            Log.d(TAG, "Loaded item: " + name + " (ID: " + id + ")");
+                        }
+                    } finally {
+                        cursor.close();
                     }
                 }
-
-                @Override
-                public void onServiceFailure(ResultStatus status) {
-                    Log.e(TAG, "Error fetching items: " + status);
-                }
-
-                @Override
-                public void onServiceConnectionFailure() {
-                    Log.e(TAG, "Service connection failure");
-                }
-            });
-        }
+            } catch (Exception e) {
+                Log.e(TAG, "Error fetching inventory items", e);
+            }
+        });
     }
 
     private void handleOrderUpdate(String orderId) {
@@ -363,6 +399,10 @@ public class OrderListenerService extends Service {
         });
     }
 
+    public String getMerchantId() {
+        return merchantId;
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
@@ -387,7 +427,7 @@ public class OrderListenerService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-        return null;  // This is a started service, not a bound service
+        return binder;
     }
 
     @Override
