@@ -87,6 +87,7 @@ public class OrderListenerService extends Service {
     public void setOnMerchantIdReadyListener(OnMerchantIdReadyListener listener) {
         this.merchantIdReadyListener = listener;
         // If merchantId is already available, notify immediately
+        merchantId = "TEST";
         if (merchantId != null) {
             listener.onMerchantIdReady(merchantId);
         }

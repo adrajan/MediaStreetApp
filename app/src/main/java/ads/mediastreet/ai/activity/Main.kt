@@ -49,8 +49,9 @@ class Main : Activity() {
         // Initialize RecyclerView
         monthlyStatsAdapter = MonthlyStatsAdapter()
         binding.rvMonthlyStats.apply {
-            layoutManager = LinearLayoutManager(this@Main)
+            layoutManager = LinearLayoutManager(this@Main, LinearLayoutManager.VERTICAL, false)
             adapter = monthlyStatsAdapter
+            setHasFixedSize(true)
         }
         
         createNotificationChannel()
@@ -70,20 +71,25 @@ class Main : Activity() {
     }
     
     private fun fetchRetailerStats(merchantId: String) {
+        Log.d("Main", "Fetching stats for merchant ID: $merchantId")
         RetailerStatsRepository.getRetailerStats(merchantId) { response ->
-            response?.let { stats ->
-                runOnUiThread {
-                    // Update title
-                    binding.tvStatsTitle.text = stats.title
-                    
-                    // Update summary stats
-                    binding.tvTotalAds.text = "Total Ads: ${stats.summary.totalAds}"
-                    binding.tvTotalOrders.text = "Total Orders: ${stats.summary.totalOrders}"
-                    binding.tvTotalPaid.text = "Total Paid: $${stats.summary.paid}"
-                    
-                    // Update monthly stats
-                    monthlyStatsAdapter.updateStats(stats.monthly)
-                }
+            if (response == null) {
+                Log.e("Main", "Failed to get retailer stats - response is null")
+                return@getRetailerStats
+            }
+            Log.d("Main", "Got stats response - Title: ${response.title}, Monthly stats count: ${response.monthly.size}")
+            runOnUiThread {
+                // Update title
+                binding.tvStatsTitle.text = response.title
+                
+                // Update summary stats
+                binding.tvTotalAds.text = "Total Ads: ${response.summary.totalAds}"
+                binding.tvTotalOrders.text = "Total Orders: ${response.summary.totalOrders}"
+                binding.tvTotalPaid.text = "Total Paid: $${response.summary.paid}"
+                
+                // Update monthly stats
+                monthlyStatsAdapter.updateStats(response.monthly)
+                Log.d("Main", "Updated UI with stats data")
             }
         }
     }
