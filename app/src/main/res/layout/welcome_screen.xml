@@ -77,14 +77,26 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
+        android:id="@+id/tvVersion"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="@color/white"
+        android:textSize="@dimen/_6ssp"
+        app:layout_constraintStart_toStartOf="@+id/bordertext"
+        app:layout_constraintTop_toBottomOf="@+id/bordertext"
+        tools:text="Version 1.0.14" />
+
+    <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="sans-serif-medium"
         android:text="@string/pos_pays_text"
         android:textColor="@color/off_white"
         android:textSize="@dimen/_10ssp"
+        android:layout_marginTop="@dimen/_4sdp"
         app:layout_constraintStart_toStartOf="@+id/bordertext"
-        app:layout_constraintTop_toBottomOf="@+id/bordertext" />
+        app:layout_constraintTop_toBottomOf="@+id/tvVersion" />
 
 
     <TextView
@@ -97,6 +109,95 @@
         android:textColor="@color/off_white"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/statsPanel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/_16sdp"
+        android:alpha="0.9"
+        app:cardBackgroundColor="#80000000"
+        app:cardCornerRadius="@dimen/_8sdp"
+        app:cardElevation="@dimen/_4sdp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="@id/guideline2"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.25">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="@dimen/_16sdp">
+
+            <TextView
+                android:id="@+id/tvStatsTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:textColor="@color/white"
+                android:textSize="@dimen/_6ssp"
+                tools:text="Your Stats" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/_8sdp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvTotalAds"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif"
+                    android:textColor="@color/white"
+                    android:textSize="@dimen/_5ssp"
+                    tools:text="Total Ads: 0" />
+
+                <TextView
+                    android:id="@+id/tvTotalOrders"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/_4sdp"
+                    android:fontFamily="sans-serif"
+                    android:textColor="@color/white"
+                    android:textSize="@dimen/_5ssp"
+                    tools:text="Total Orders: 0" />
+
+                <TextView
+                    android:id="@+id/tvTotalPaid"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/_4sdp"
+                    android:fontFamily="sans-serif"
+                    android:textColor="@color/white"
+                    android:textSize="@dimen/_5ssp"
+                    tools:text="Total Paid: $0" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvMonthlyStatsTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/_16sdp"
+                android:fontFamily="sans-serif-medium"
+                android:text="Monthly Stats"
+                android:textColor="@color/white"
+                android:textSize="@dimen/_5ssp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvMonthlyStats"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginTop="@dimen/_8sdp"
+                android:clipToPadding="false"
+                android:paddingBottom="@dimen/_8sdp" />
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
 
     <!--second part of screen -->
 
