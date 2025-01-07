@@ -69,10 +69,9 @@ public class OrderListenerService extends Service {
     private OrderConnector.OnOrderUpdateListener2 mOrderUpdateListener;
     private RemoteDeviceConnector remoteDeviceConnector;
     private MerchantConnector mMerchantConnector;
-    private String merchantId;
+    private static String merchantId;
     private Map<String, Item> itemMap = new HashMap<>();
     private OrderConnector orderConnector;
-    private MerchantConnector merchantConnector;
     private Account account;
     private String currentOrderId;
     private Set<String> currentItemSet = new HashSet<>();
@@ -82,10 +81,7 @@ public class OrderListenerService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        initializeOrderConnector();
         initializeMerchantConnector();
-        fetchInventoryItems();
-        startForegroundService();
         backgroundThread = new HandlerThread("OrderListenerServiceThread");
         backgroundThread.start();
         backgroundHandler = new Handler(backgroundThread.getLooper());
@@ -237,7 +233,11 @@ public class OrderListenerService extends Service {
             public void onServiceSuccess(Merchant result, ResultStatus status) {
                 merchantId = result.getId();
                 Log.d(TAG, "Merchant ID: " + merchantId);
+                initializeOrderConnector();
+                fetchInventoryItems();
+                startForegroundService();
             }
+
             @Override
             public void onServiceFailure(ResultStatus status) {
                 Log.e(TAG, "Failed to get merchant information: " + status);
@@ -245,9 +245,8 @@ public class OrderListenerService extends Service {
 
             @Override
             public void onServiceConnectionFailure() {
-                Log.e(TAG, "Service connection failure");
+                Log.e(TAG, "Failed to connect to merchant connector");
             }
-
         });
     }
 
@@ -327,6 +326,10 @@ public class OrderListenerService extends Service {
         });
 
         return START_STICKY;  // Keeps the service running until explicitly stopped
+    }
+
+    public static String getMerchantId() {
+        return merchantId;
     }
 
     public void sendMessageToCustomerScreen(String action, String payload) {

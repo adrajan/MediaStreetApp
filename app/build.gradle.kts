@@ -32,6 +32,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 
     buildTypes {
@@ -42,6 +43,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("String", "API_URL", "\"https://api.mediastreet.ai\"")
+        }
+        getByName("debug") {
+            buildConfigField("String", "API_URL", "\"https://api.mediastreet.ai\"")
         }
     }
 

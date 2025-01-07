@@ -31,7 +31,7 @@ public class ApiClient {
 //            interceptor.setLevel(HttpLoggingInterceptor.Level.NONE);
 //        }
         interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
-        BASE_URL = "https://mediastreetai.com";
+        BASE_URL = "https://mediastreetai.com/";
         OkHttpClient client = new OkHttpClient.Builder().addInterceptor(interceptor)
                 .connectTimeout(30, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).build();
         retrofit = new Retrofit.Builder().
