@@ -68,7 +68,6 @@ public class OrderListenerService extends Service {
     private OrderV31Connector mOrderConnector;
     private OrderConnector.OnOrderUpdateListener2 mOrderUpdateListener;
     private RemoteDeviceConnector remoteDeviceConnector;
-    private MerchantConnector mMerchantConnector;
     private static String merchantId;
     private Map<String, Item> itemMap = new HashMap<>();
     private OrderConnector orderConnector;
@@ -78,10 +77,13 @@ public class OrderListenerService extends Service {
     HandlerThread backgroundThread;
     Handler backgroundHandler;
 
+    public static String getMerchantId() {
+        return merchantId;
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
-        initializeMerchantConnector();
         backgroundThread = new HandlerThread("OrderListenerServiceThread");
         backgroundThread.start();
         backgroundHandler = new Handler(backgroundThread.getLooper());
@@ -226,28 +228,36 @@ public class OrderListenerService extends Service {
         mOrderConnector.addOnOrderChangedListener(mOrderUpdateListener);
     }
 
-    private void initializeMerchantConnector() {
-        mMerchantConnector = new MerchantConnector(this, CloverAccount.getAccount(this), null);
-        mMerchantConnector.getMerchant(new ServiceConnector.Callback<Merchant>() {
-            @Override
-            public void onServiceSuccess(Merchant result, ResultStatus status) {
-                merchantId = result.getId();
-                Log.d(TAG, "Merchant ID: " + merchantId);
-                initializeOrderConnector();
-                fetchInventoryItems();
-                startForegroundService();
-            }
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null && intent.hasExtra("merchant_id")) {
+            merchantId = intent.getStringExtra("merchant_id");
+            Log.d(TAG, "Received merchant ID: " + merchantId);
+            initializeOrderConnector();
+            fetchInventoryItems();
+            startForeground(1, createNotification());  // Start foreground immediately
+        } else {
+            Log.e(TAG, "No merchant ID provided");
+            stopSelf();  // Stop service if no merchant ID
+            return START_NOT_STICKY;
+        }
 
-            @Override
-            public void onServiceFailure(ResultStatus status) {
-                Log.e(TAG, "Failed to get merchant information: " + status);
-            }
-
-            @Override
-            public void onServiceConnectionFailure() {
-                Log.e(TAG, "Failed to connect to merchant connector");
+        backgroundHandler.post(() -> {
+            if (remoteDeviceConnector == null) {
+                remoteDeviceConnector = new RemoteDeviceConnector(getApplicationContext(), CloverAccount.getAccount(this));
+                remoteDeviceConnector.connect();
             }
         });
+
+        return START_STICKY;  // Keeps the service running until explicitly stopped
+    }
+
+    private Notification createNotification() {
+        return new NotificationCompat.Builder(this, "CHANNEL_ID")
+                .setContentTitle("Listening for Orders")
+                .setContentText("Order listener is running in the background")
+                .setSmallIcon(R.drawable.ic_notification_icon)
+                .build();
     }
 
     private void handleOrderUpdate(String orderId) {
@@ -303,33 +313,6 @@ public class OrderListenerService extends Service {
                 Log.e(TAG, "Error getting order details in handleOrderUpdate", e);
             }
         });
-    }
-
-    @SuppressLint("ForegroundServiceType")
-    private void startForegroundService() {
-        // Create a persistent notification for the foreground service
-        Notification notification = new NotificationCompat.Builder(this, "CHANNEL_ID")
-                .setContentTitle("Listening for Orders")
-                .setContentText("Order listener is running in the background")
-                .setSmallIcon(R.drawable.ic_notification_icon)
-                .build();
-        startForeground(1, notification);  // Start the service in the foreground with the notification
-    }
-
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        backgroundHandler.post(() -> {
-            if (remoteDeviceConnector == null) {
-                remoteDeviceConnector = new RemoteDeviceConnector(getApplicationContext(), CloverAccount.getAccount(this));
-                remoteDeviceConnector.connect();
-            }
-        });
-
-        return START_STICKY;  // Keeps the service running until explicitly stopped
-    }
-
-    public static String getMerchantId() {
-        return merchantId;
     }
 
     public void sendMessageToCustomerScreen(String action, String payload) {

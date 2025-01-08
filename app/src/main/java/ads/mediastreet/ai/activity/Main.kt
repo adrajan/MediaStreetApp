@@ -16,6 +16,11 @@ import android.os.Looper
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.clover.sdk.util.CloverAccount
+import com.clover.sdk.v1.ResultStatus
+import com.clover.sdk.v1.merchant.Merchant
+import com.clover.sdk.v1.merchant.MerchantConnector
+import com.clover.sdk.v1.ServiceConnector
 import kotlinx.coroutines.*
 
 class Main : AppCompatActivity() {
@@ -23,6 +28,8 @@ class Main : AppCompatActivity() {
     private val mainScope = CoroutineScope(Dispatchers.Main + Job())
     private val handler = Handler(Looper.getMainLooper())
     private val TAG = "Main"
+    private lateinit var mMerchantConnector: MerchantConnector
+    private var merchantId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,31 +40,65 @@ class Main : AppCompatActivity() {
         val packageInfo = packageManager.getPackageInfo(packageName, 0)
         binding.versionText.text = "v${packageInfo.versionName}"
 
-        startStatusChecks()
+        // Set initial account status to not approved
+        updateAccountStatus("not_approved")
+
+        // Initialize merchant connector
+        initializeMerchantConnector()
+    }
+
+    private fun initializeMerchantConnector() {
+        mMerchantConnector = MerchantConnector(this, CloverAccount.getAccount(this), null)
+        mMerchantConnector.getMerchant(object : ServiceConnector.Callback<Merchant> {
+            override fun onServiceSuccess(result: Merchant?, status: ResultStatus?) {
+                merchantId = result?.id
+                Log.d(TAG, "Merchant ID: $merchantId")
+                startStatusChecks()
+                if (merchantId == null) {
+                    Log.e(TAG, "Merchant ID is null")
+                    updateAccountStatus("not_approved")
+                }
+            }
+
+            override fun onServiceFailure(status: ResultStatus?) {
+                Log.e(TAG, "Failed to get merchant information: $status")
+                updateAccountStatus("not_approved")
+            }
+
+            override fun onServiceConnectionFailure() {
+                Log.e(TAG, "Failed to connect to merchant connector")
+                updateAccountStatus("not_approved")
+            }
+        })
     }
 
     private fun startStatusChecks() {
-        // Start health check polling immediately
-        handler.post(object : Runnable {
+        // Start health check polling with 5 minute interval
+        val healthCheckRunnable = object : Runnable {
             override fun run() {
                 checkHealthStatus()
                 handler.postDelayed(this, 5 * 60 * 1000) // 5 minutes
             }
-        })
+        }
+        handler.postDelayed(healthCheckRunnable, 5 * 60 * 1000) // Start after 5 minutes
+        checkHealthStatus() // Do initial check immediately
 
         // Check account status
-        val merchantId = OrderListenerService.getMerchantId()
-        if (merchantId == null) {
-            // Wait for merchant ID to be available
-            handler.postDelayed({ startStatusChecks() }, 1000)
-            return
-        }
-
-        AccountRepository.checkAccountStatus(merchantId) { status ->
-            updateAccountStatus(status)
-            if (status.lowercase() == "approved") {
-                createNotificationChannel()
-                startForegroundService()
+        merchantId?.let { id ->
+            AccountRepository.checkAccountStatus(id) { status ->
+                updateAccountStatus(status)
+                if (status.lowercase() == "approved") {
+                    createNotificationChannel()
+                    // Start service with merchant ID only when account is approved
+                    val serviceIntent = Intent(this@Main, OrderListenerService::class.java).apply {
+                        putExtra("merchant_id", merchantId)
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(serviceIntent)
+                    } else {
+                        startService(serviceIntent)
+                    }
+                }
             }
         }
     }
