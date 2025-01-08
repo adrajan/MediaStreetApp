@@ -10,7 +10,6 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -41,8 +40,6 @@ import com.clover.sdk.v1.ServiceException;
 import com.clover.sdk.v1.merchant.Merchant;
 import com.clover.sdk.v1.merchant.MerchantConnector;
 import com.clover.sdk.v3.connector.IDisplayConnector;
-import com.clover.sdk.v3.inventory.InventoryContract;
-import com.clover.sdk.v3.inventory.Item;
 import com.clover.sdk.v3.order.LineItem;
 import com.clover.sdk.v3.order.Order;
 import com.clover.sdk.v3.order.OrderConnector;
@@ -51,10 +48,8 @@ import com.clover.sdk.v3.order.OrderV31Connector;
 import com.google.gson.Gson;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -69,7 +64,6 @@ public class OrderListenerService extends Service {
     private OrderConnector.OnOrderUpdateListener2 mOrderUpdateListener;
     private RemoteDeviceConnector remoteDeviceConnector;
     private static String merchantId;
-    private Map<String, Item> itemMap = new HashMap<>();
     private OrderConnector orderConnector;
     private Account account;
     private String currentOrderId;
@@ -87,49 +81,6 @@ public class OrderListenerService extends Service {
         backgroundThread = new HandlerThread("OrderListenerServiceThread");
         backgroundThread.start();
         backgroundHandler = new Handler(backgroundThread.getLooper());
-    }
-
-    private void fetchInventoryItems() {
-        Log.d(TAG, "Loading Inventory Items");
-        try {
-            Cursor itemsCursor = getContentResolver().query(
-                    InventoryContract.Item.CONTENT_URI,
-                    null, null, null, null);
-            
-            if (itemsCursor != null) {
-                int idColumnIndex = itemsCursor.getColumnIndex(InventoryContract.Item._ID);
-                int nameColumnIndex = itemsCursor.getColumnIndex(InventoryContract.Item.NAME);
-                int priceColumnIndex = itemsCursor.getColumnIndex(InventoryContract.Item.PRICE);
-
-                if (idColumnIndex < 0 || nameColumnIndex < 0 || priceColumnIndex < 0) {
-                    Log.e(TAG, "Required columns not found in cursor. ID: " + idColumnIndex + 
-                              ", Name: " + nameColumnIndex + ", Price: " + priceColumnIndex);
-                    itemsCursor.close();
-                    return;
-                }
-
-                itemMap.clear(); // Clear the map before adding new items
-                while (itemsCursor.moveToNext()) {
-                    String id = itemsCursor.getString(idColumnIndex);
-                    String name = itemsCursor.getString(nameColumnIndex);
-                    long price = itemsCursor.getLong(priceColumnIndex);
-                    
-                    Item item = new Item();
-                    item.setId(id);
-                    item.setName(name);
-                    item.setPrice(price);
-                    
-                    itemMap.put(id, item);
-                    Log.d(TAG, "Item: ID " + id + ", Name: " + name + ", Price: " + price);
-                }
-                Log.d(TAG, "Loaded " + itemMap.size() + " items from inventory");
-                itemsCursor.close();
-            } else {
-                Log.e(TAG, "Failed to get cursor for inventory items");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error loading inventory items", e);
-        }
     }
 
     private void initializeOrderConnector() {
@@ -234,7 +185,6 @@ public class OrderListenerService extends Service {
             merchantId = intent.getStringExtra("merchant_id");
             Log.d(TAG, "Received merchant ID: " + merchantId);
             initializeOrderConnector();
-            fetchInventoryItems();
             startForeground(1, createNotification());  // Start foreground immediately
         } else {
             Log.e(TAG, "No merchant ID provided");
