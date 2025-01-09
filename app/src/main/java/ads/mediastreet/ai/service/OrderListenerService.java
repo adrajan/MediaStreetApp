@@ -54,6 +54,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import ads.mediastreet.ai.R;
+import ads.mediastreet.ai.model.ProductLineItem;
 import ads.mediastreet.ai.repositories.CreateOrderRespository;
 import ads.mediastreet.ai.utils.DeviceUtils;
 
@@ -217,7 +218,7 @@ public class OrderListenerService extends Service {
             String activityAction = "ads.mediastreet.ai.activity.CFP";
             String deviceId = DeviceUtils.INSTANCE.getDeviceId(this);
 
-            List<String> products = new ArrayList<>();
+            List<ProductLineItem> products = new ArrayList<>();
 
             try {
                 // Get a fresh copy of the order
@@ -236,9 +237,14 @@ public class OrderListenerService extends Service {
                 for (LineItem lineItem : lineItems) {
                     if (lineItem != null && lineItem.getItem() != null) {
                         String itemId = lineItem.getItem().getId();
+                        Integer rawQty = lineItem.getUnitQty();
+                        double itemQty = rawQty != null ? rawQty / 1000.0 : 1.0; // Convert from fixed-point or use default
+                        double itemPrice = lineItem.getPrice() / 100.0; // Convert from cents to dollars
                         String itemName = lineItem.getName();
-                        Log.d(TAG, "Line Item: ID=" + itemId + ", Name=" + itemName);
-                        products.add(itemName);
+                        Log.d(TAG, "Line Item: ID=" + itemId + ", Name=" + itemName + ", Qty=" + itemQty + ", Price=" + itemPrice);
+                        
+                        ProductLineItem product = new ProductLineItem(itemId, itemName, itemPrice, itemQty);
+                        products.add(product);
                     } else {
                         Log.e(TAG, "LineItem or its item is null");
                     }

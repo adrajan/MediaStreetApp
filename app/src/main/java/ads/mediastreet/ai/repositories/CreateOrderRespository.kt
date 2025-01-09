@@ -4,6 +4,7 @@ package ads.mediastreet.ai.repositories
 import ads.mediastreet.ai.app.ApiClient
 import ads.mediastreet.ai.model.OrderRequest
 import ads.mediastreet.ai.model.OrderResponse
+import ads.mediastreet.ai.model.ProductLineItem
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -14,7 +15,7 @@ object CreateOrderRespository {
         retailerId: String,
         orderId: String,
         price: Double,
-        products: List<String>,
+        products: List<ProductLineItem>,
         crossinline orderResponse: OrderResponse?.() -> Unit
     ) {
 

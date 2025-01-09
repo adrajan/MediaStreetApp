@@ -24,8 +24,8 @@ android {
         minSdk = 21
         //noinspection ExpiredTargetSdkVersion this for clover Device
         targetSdk = 25
-        versionCode = 16
-        versionName = "1.0.16"
+        versionCode = 19
+        versionName = "1.0.19"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -4,7 +4,14 @@ data class OrderRequest(
     val retailerId: String,
     val orderId: String,
     val price: Double,
-    val products: List<String>
+    val products: List<ProductLineItem>
+)
+
+data class ProductLineItem(
+    val id: String,
+    val name: String,
+    val price: Double,
+    val qty: Double
 )
 
 data class AdMetadata(
