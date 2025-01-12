@@ -19,6 +19,7 @@ import ads.mediastreet.ai.R;
 import ads.mediastreet.ai.databinding.CfpBinding;
 import ads.mediastreet.ai.model.OrderResponse;
 import ads.mediastreet.ai.repositories.RecordImpressionRepository;
+import ads.mediastreet.ai.service.OrderListenerService;
 import ads.mediastreet.ai.utils.DeviceUtils;
 import kotlin.Unit;
 
@@ -61,9 +62,10 @@ public class CFP extends CloverCFPActivity {
                     String orderId = orderResponse.getOrderId();
                     String impressionId = orderResponse.getImpressionId();
                     long timestamp = System.currentTimeMillis() / 1000L;
-                    String deviceId = DeviceUtils.INSTANCE.getDeviceId(this); // Replace with actual device ID retrieval logic
+                    String deviceId = DeviceUtils.INSTANCE.getDeviceId(this); 
+                    String merchantId = OrderListenerService.getMerchantId();
 
-                    RecordImpressionRepository.recordImpression(orderId, impressionId, timestamp, deviceId, impressionResponse -> {
+                    RecordImpressionRepository.recordImpression(orderId, impressionId, timestamp, deviceId, merchantId, impressionResponse -> {
                         if (impressionResponse != null) {
                             Log.d(TAG, "Impression recorded: " + impressionResponse.getMessage());
                         } else {

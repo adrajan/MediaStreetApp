@@ -14,9 +14,10 @@ object RecordImpressionRepository {
         impressionId: String,
         timestamp: Long,
         deviceId: String,
+        retailerId: String,
         crossinline impressionResponse: ImpressionResponse?.() -> Unit
     ) {
-        val impressionRequest = ImpressionRequest(orderId, impressionId, timestamp, deviceId)
+        val impressionRequest = ImpressionRequest(orderId, impressionId, timestamp, deviceId, retailerId)
         ApiClient.getmInstance().api.recordImpression(impressionRequest)
             .enqueue(object : Callback<ImpressionResponse> {
                 override fun onResponse(

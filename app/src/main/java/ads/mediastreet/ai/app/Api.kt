@@ -7,6 +7,7 @@ import ads.mediastreet.ai.model.ImpressionRequest
 import ads.mediastreet.ai.model.ImpressionResponse
 import ads.mediastreet.ai.model.OrderRequest
 import ads.mediastreet.ai.model.OrderResponse
+import ads.mediastreet.ai.model.RetailerStatsRequest
 import ads.mediastreet.ai.model.RetailerStatsResponse
 import ads.mediastreet.ai.utils.Variables
 import retrofit2.Call
@@ -24,8 +25,8 @@ interface Api {
     @POST(Variables.V1_AD +"ads/impressions")
     fun recordImpression(@Body impressionRequest: ImpressionRequest): Call<ImpressionResponse>
 
-    @GET(Variables.V1_AD + "retailers/{retailerId}/stats")
-    fun getRetailerStats(@Path("retailerId") retailerId: String): Call<RetailerStatsResponse>
+    @POST(Variables.V1_AD + "retailer/stats")
+    fun getRetailerStats(@Body request: RetailerStatsRequest): Call<RetailerStatsResponse>
 
     @GET(Variables.V1_AD + "health")
     fun getHealth(): Call<HealthResponse>

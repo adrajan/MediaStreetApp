@@ -1,6 +1,7 @@
 package ads.mediastreet.ai.repositories
 
 import ads.mediastreet.ai.app.ApiClient
+import ads.mediastreet.ai.model.RetailerStatsRequest
 import ads.mediastreet.ai.model.RetailerStatsResponse
 import android.util.Log
 import retrofit2.Call
@@ -15,7 +16,8 @@ object RetailerStatsRepository {
         callback: (RetailerStatsResponse?) -> Unit
     ) {
         Log.d(TAG, "Making API call to fetch stats for retailer: $retailerId")
-        ApiClient.getmInstance().api.getRetailerStats(retailerId).enqueue(object : Callback<RetailerStatsResponse> {
+        val request = RetailerStatsRequest(retailerId)
+        ApiClient.getmInstance().api.getRetailerStats(request).enqueue(object : Callback<RetailerStatsResponse> {
             override fun onResponse(
                 call: Call<RetailerStatsResponse>,
                 response: Response<RetailerStatsResponse>
